@@ -1,0 +1,43 @@
+app:
+  data_dir: "~/.storage-optimizer"
+  retention_days: 30
+
+scan:
+  include_external: false
+  worker_count: 0
+  hash_threshold_bytes: 104857600
+  dedup_min_size: 1048576
+
+exclude:
+  windows:
+    - C:\Windows
+    - C:\Program Files
+    - C:\Program Files (x86)
+    - C:\ProgramData
+    - C:\$Recycle.Bin
+    - C:\Windows.old
+    - C:\System Volume Information
+    - C:\Users\*\AppData\Local\Microsoft\Windows\INetCache
+    - C:\Users\*\AppData\Local\Temp
+  linux:
+    - /proc
+    - /sys
+    - /dev
+    - /boot
+    - /run
+  darwin:
+    - /System
+    - /Library
+  custom: []
+
+retention:
+  cache_temp_days: 14
+  log_duplicate_days: 30
+  large_old_days: 90
+
+thresholds:
+  important_age_days: 30
+  large_file_bytes: 104857600
+  old_file_days: 365
+  installer_age_days: 90
+  log_age_days: 90

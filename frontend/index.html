@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html class="dark" lang="id">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <title>Bersihin – Storage Optimizer</title>
+  <link rel="stylesheet" href="./src/style.css">
+</head>
+<body class="bg-background font-body-md text-on-surface antialiased min-h-screen">
+
+<!-- ═══ HEADER ═══════════════════════════════════════════════ -->
+<header class="fixed top-0 w-full z-50 bg-surface-container-low/95 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.4)]">
+<div class="h-14 w-full px-margin flex items-center justify-between gap-space-lg">
+  <div class="flex items-center gap-space-md shrink-0">
+    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-primary-container to-primary flex items-center justify-center">
+      <span class="material-symbols-outlined text-on-primary text-[18px]">cleaning_services</span>
+    </div>
+    <div class="flex flex-col">
+      <span class="font-headline-md text-headline-md text-text-primary tracking-tight">Bersihin</span>
+      <span class="font-code-sm text-code-sm text-primary tracking-wide uppercase">Storage Optimizer v1.0.0</span>
+    </div>
+  </div>
+  <nav class="hidden lg:flex items-center gap-space-xs p-space-xs bg-surface-container-lowest/80 rounded-lg" id="mainNav">
+    <a class="nav-tab px-space-md py-space-xs rounded-lg font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-all" data-page="page-scan" data-page-id="page-scan">Pindai &amp; Bersihkan</a>
+    <a class="nav-tab px-space-md py-space-xs rounded-lg font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-all" data-page="page-quarantine">Karantina &amp; Pulihkan</a>
+    <a class="nav-tab px-space-md py-space-xs rounded-lg font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-all" data-page="page-audit">Audit &amp; Riwayat</a>
+    <a class="nav-tab px-space-md py-space-xs rounded-lg font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-all" data-page="page-settings">Pengaturan</a>
+  </nav>
+  <div class="flex items-center gap-space-md shrink-0">
+    <div class="hidden xl:flex items-center gap-space-xs px-space-md py-space-xs rounded-lg bg-surface-container-lowest">
+      <span class="material-symbols-outlined text-secondary text-[18px]">verified_user</span>
+      <span class="font-code-sm text-code-sm text-secondary">7-Step Validation</span>
+    </div>
+    <div class="hidden sm:flex flex-row items-end gap-space-xs" id="driveUsageBox">
+    </div>
+  </div>
+</div>
+</header>
+
+<!-- ═══ MAIN ═════════════════════════════════════════════════ -->
+<main class="w-full pt-14 bg-background min-h-[calc(100vh-68px)]">
+
+<!-- ─── PAGE: PINDAI & BERSIHKAN ─────────────────────────── -->
+<div id="page-scan" class="page flex flex-col w-full">
+
+  <!-- Toolbar -->
+  <div class="w-full bg-surface-container-low px-margin py-space-sm shadow-sm">
+    <div class="max-w-7xl mx-auto flex flex-col gap-space-sm">
+      <div class="flex flex-wrap items-center justify-between gap-space-md">
+        <div class="flex flex-wrap items-center gap-space-sm flex-1 min-w-[280px]">
+          <div class="relative inline-block">
+            <select class="appearance-none bg-surface-container-high text-on-surface font-code-md text-code-md rounded-lg pl-space-md pr-8 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer shadow-sm" id="driveSelect"></select>
+            <span class="material-symbols-outlined absolute right-2 top-2 text-text-muted pointer-events-none text-[18px]">expand_more</span>
+          </div>
+          <button class="flex items-center gap-space-xs px-space-md py-1.5 rounded-lg bg-surface-container text-on-surface font-label-md text-label-md hover:bg-surface-container-highest transition-colors shadow-sm" id="browseBtn" type="button">
+            <span class="material-symbols-outlined text-primary text-[18px]">folder_open</span>
+            <span>Cari Folder</span>
+          </button>
+          <div class="flex-1 min-w-[200px] flex items-center bg-surface-container-lowest rounded-lg px-space-sm py-1">
+            <span class="material-symbols-outlined text-text-muted text-[16px] mr-1">terminal</span>
+            <input class="w-full bg-transparent font-code-sm text-code-sm text-primary focus:outline-none" id="customPathInput" placeholder="Ketik jalur folder atau pilih dari dropdown..." type="text"/>
+          </div>
+        </div>
+        <div class="flex items-center gap-space-sm">
+          <div class="bg-surface-container-lowest p-0.5 rounded-lg flex items-center" id="scanModeGroup">
+            <button class="scan-mode-btn px-space-sm py-1 rounded-lg font-label-sm text-label-sm text-on-surface-variant hover:text-on-surface" data-mode="folder" type="button">Folder ini saja</button>
+            <button class="scan-mode-btn px-space-sm py-1 rounded-lg font-label-sm text-label-sm bg-primary text-on-primary font-bold shadow-sm" data-mode="full" type="button">Full Scan</button>
+            <button class="scan-mode-btn px-space-sm py-1 rounded-lg font-label-sm text-label-sm text-on-surface-variant hover:text-on-surface" data-mode="quick" type="button">Quick Scan</button>
+          </div>
+          <button class="flex items-center gap-space-xs px-space-md py-1.5 rounded-lg bg-gradient-to-r from-primary-container to-primary text-on-primary-container font-label-md text-label-md font-bold hover:brightness-110 transition-all shadow-[0_0_16px_rgba(6,182,212,0.3)]" id="scanActionBtn" type="button">
+            <span class="material-symbols-outlined text-[18px]">sync</span>
+            <span id="scanActionLabel">Pindai Ulang</span>
+          </button>
+        </div>
+      </div>
+      <!-- Status row -->
+      <div class="flex items-center justify-between bg-surface-container-lowest/80 px-space-md py-space-xs rounded-lg" id="scanStatusRow">
+        <div class="flex items-center gap-space-sm min-w-0">
+          <span class="material-symbols-outlined text-secondary text-[18px] spin hidden" id="scanSpinner">progress_activity</span>
+          <span class="flex h-2 w-2 relative" id="idleDot">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-secondary opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2 w-2 bg-secondary"></span>
+          </span>
+          <span class="font-code-sm text-code-sm text-secondary font-semibold whitespace-nowrap" id="scanPhaseLabel">Menunggu pemindaian...</span>
+          <span class="font-code-sm text-code-sm text-text-secondary truncate" id="scanStatusText">Pilih folder lalu klik Pindai Ulang</span>
+        </div>
+        <div class="flex items-center gap-space-md" id="scanLegend" style="display:none">
+          <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-safety-safe"></span><span class="font-label-sm text-label-sm text-text-muted">Aman (Auto)</span></div>
+          <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-safety-review"></span><span class="font-label-sm text-label-sm text-text-muted">Perlu Review</span></div>
+        </div>
+      </div>
+      <!-- Progress bar (hidden initially) -->
+      <div class="w-full bg-surface-container-highest rounded-full h-2 hidden" id="scanProgressWrap">
+        <div class="h-full bg-gradient-to-r from-secondary to-primary rounded-full transition-all duration-200" id="scanProgressBar" style="width:0"></div>
+      </div>
+      <!-- Live scan stats (hidden until scanning starts) -->
+      <div class="flex items-center gap-space-md px-space-md text-code-sm font-code-sm text-text-muted hidden" id="scanLiveWrap">
+        <span class="flex items-center gap-1 whitespace-nowrap"><span class="material-symbols-outlined text-[15px] text-info-sky">description</span><span id="scanLiveFiles">0</span> file</span>
+        <span class="flex items-center gap-1 min-w-0"><span class="material-symbols-outlined text-[15px] text-info-sky shrink-0">folder_open</span><span class="truncate" id="scanLivePath">-</span></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Content grid -->
+  <div class="w-full px-margin py-space-md pb-28">
+    <div class="max-w-7xl mx-auto grid grid-cols-1 xl:grid-cols-12 gap-space-lg">
+
+      <!-- Left: categories -->
+      <div class="xl:col-span-8 flex flex-col gap-space-sm" id="catList">
+        <!-- Empty state -->
+        <div id="emptyState" class="bg-surface-container-low rounded-lg p-12 flex flex-col items-center justify-center text-center shadow-sm">
+          <span class="material-symbols-outlined text-text-muted text-[56px] mb-4">search</span>
+          <span class="font-headline-lg text-headline-lg text-text-primary mb-2">Belum ada hasil pemindaian</span>
+          <span class="font-body-sm text-body-sm text-text-secondary">Pilih drive atau folder, lalu klik <strong class="text-primary">Pindai Ulang</strong> untuk memulai.</span>
+        </div>
+      </div>
+
+      <!-- Right: donut + 7-step -->
+      <div class="xl:col-span-4 flex flex-col gap-space-md" id="rightPanel">
+        <!-- Donut -->
+        <div class="bg-surface-container-low rounded-lg p-space-lg shadow-md flex flex-col gap-space-sm">
+          <div class="flex items-center justify-between">
+            <span class="font-headline-md text-headline-md text-text-primary">Distribusi Temuan Ruang</span>
+            <span class="font-code-sm text-code-sm text-info-sky" id="distTotalLabel">0 B</span>
+          </div>
+          <div class="flex items-center gap-space-md py-space-xs">
+            <div class="relative w-24 h-24 shrink-0 flex items-center justify-center">
+              <svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36" id="donutSvg">
+                <path class="text-surface-container-highest" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="3.5"></path>
+                <path class="text-safety-safe" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="0, 100" stroke-width="3.5" id="donutSafe"></path>
+                <path class="text-safety-review" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="0, 100" stroke-dashoffset="0" stroke-width="3.5" id="donutReview"></path>
+                <path class="text-safety-review-warn" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="0, 100" stroke-dashoffset="0" stroke-width="3.5" id="donutWarn"></path>
+              </svg>
+              <div class="absolute inset-0 flex flex-col items-center justify-center">
+                <span class="font-code-sm text-code-sm text-text-muted">Terpilih</span>
+                <span class="font-metric-display text-metric-display text-text-primary" id="gaugeRatioText">0%</span>
+              </div>
+            </div>
+            <div class="flex flex-col gap-1 flex-1 font-code-sm text-code-sm" id="distLegend">
+              <div class="flex items-center justify-between"><span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-safety-safe"></span>Cache &amp; Temp</span><span class="text-text-primary font-semibold" id="distSafe">0 B</span></div>
+              <div class="flex items-center justify-between"><span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-secondary"></span>Logs Lama</span><span class="text-text-primary font-semibold" id="distLog">0 B</span></div>
+              <div class="flex items-center justify-between"><span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-safety-review"></span>Duplikat</span><span class="text-text-primary font-semibold" id="distDup">0 B</span></div>
+              <div class="flex items-center justify-between"><span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-safety-review-warn"></span>Berkas Besar</span><span class="text-text-primary font-semibold" id="distLarge">0 B</span></div>
+              <div class="flex items-center justify-between"><span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-tertiary"></span>Sisa Aplikasi</span><span class="text-text-primary font-semibold" id="distOrphan">0 B</span></div>
+            </div>
+          </div>
+        </div>
+        <!-- 7-step -->
+        <div class="bg-surface-container-low rounded-lg p-space-lg shadow-md flex flex-col gap-space-sm">
+          <div class="flex items-center gap-space-xs">
+            <span class="material-symbols-outlined text-secondary text-[22px]">shield</span>
+            <span class="font-headline-md text-headline-md text-text-primary">Validasi Diam 7-Langkah Aktif</span>
+          </div>
+          <p class="font-body-sm text-body-sm text-text-secondary">
+            Sistem menjalankan prinsip pertahanan berlapis (Defense in Depth). File yang Anda centang <strong class="text-text-primary">TIDAK langsung dihancurkan permanen</strong>, melainkan dipindahkan secara atomic ke wadah Karantina terenkripsi ber-manifest SHA-256.
+          </p>
+          <div class="bg-surface-container-lowest p-space-sm rounded-lg flex flex-col gap-1 font-code-sm text-code-sm">
+            <div class="flex items-center gap-space-xs text-secondary"><span class="material-symbols-outlined text-[14px]">check</span><span>1. File Exists Check</span></div>
+            <div class="flex items-center gap-space-xs text-secondary"><span class="material-symbols-outlined text-[14px]">check</span><span>2. Bukan Direktori Windows Inti</span></div>
+            <div class="flex items-center gap-space-xs text-secondary"><span class="material-symbols-outlined text-[14px]">check</span><span>3. Mod-time Snapshot Lock</span></div>
+            <div class="flex items-center gap-space-xs text-secondary"><span class="material-symbols-outlined text-[14px]">check</span><span>4. File Size Match Pre-Move</span></div>
+            <div class="flex items-center gap-space-xs text-secondary"><span class="material-symbols-outlined text-[14px]">check</span><span>5. Symlink &amp; Junction Shield</span></div>
+            <div class="flex items-center gap-space-xs text-secondary"><span class="material-symbols-outlined text-[14px]">check</span><span>6. Parent Security Boundary Check</span></div>
+            <div class="flex items-center gap-space-xs text-secondary"><span class="material-symbols-outlined text-[14px]">check</span><span>7. OS File-Lock Non-Invasive Pass</span></div>
+          </div>
+          <div class="flex items-center gap-space-xs px-space-sm py-1 rounded bg-secondary-container/20 text-secondary font-code-sm text-code-sm">
+            <span class="material-symbols-outlined text-[16px]">lock_reset</span>
+            <span>Garansi Nol File-Loss Bersihin Engine</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── PAGE: KARANTINA & PULIHKAN ────────────────────────── -->
+<div id="page-quarantine" class="page hidden w-full px-margin py-space-md pb-28">
+  <div class="max-w-7xl mx-auto flex flex-col gap-space-md">
+    <div class="flex flex-wrap items-center justify-between gap-space-md">
+      <span class="font-headline-lg text-headline-lg text-text-primary">File dalam Karantina</span>
+      <div class="flex items-center gap-space-sm" id="qActionBtns">
+        <button class="px-space-md py-1.5 rounded-lg bg-surface-container-high text-secondary hover:bg-surface-bright font-label-md text-label-md font-semibold transition-colors shadow-sm disabled:opacity-40" id="btnRestoreSel" disabled>Pulihkan Terpilih</button>
+        <button class="px-space-md py-1.5 rounded-lg bg-surface-container-high text-safety-danger hover:bg-safety-danger-hover hover:text-text-primary font-label-md text-label-md font-semibold transition-colors shadow-sm disabled:opacity-40" id="btnPurgeSel" disabled>Hapus Terpilih</button>
+        <button class="px-space-md py-1.5 rounded-lg bg-surface-container-high text-safety-review-warn hover:text-text-primary font-label-md text-label-md transition-colors shadow-sm" id="btnPurgeExpired">Hapus Semua Expired</button>
+      </div>
+    </div>
+    <div class="flex flex-wrap items-center gap-space-md bg-surface-container-low rounded-lg p-space-md shadow-sm" id="qStatsRow">
+      <div class="flex items-center gap-1.5 font-code-sm text-code-sm"><span class="material-symbols-outlined text-text-muted text-[16px]">inventory_2</span><span class="text-text-muted">Total:</span><span class="text-text-primary font-semibold" id="qTotalCount">0</span><span class="text-text-muted">file</span></div>
+      <div class="flex items-center gap-1.5 font-code-sm text-code-sm"><span class="material-symbols-outlined text-safety-danger text-[16px]">warning</span><span class="text-text-muted">Expired:</span><span class="text-safety-danger font-semibold" id="qExpiredCount">0</span></div>
+      <div class="flex items-center gap-1.5 font-code-sm text-code-sm"><span class="material-symbols-outlined text-text-muted text-[16px]">scale</span><span class="text-text-muted">Total Ukuran:</span><span class="text-text-primary font-semibold" id="qTotalSize">0 B</span></div>
+      <button class="ml-auto flex items-center gap-1 px-space-sm py-1 rounded-lg text-text-muted hover:text-on-surface hover:bg-surface-container-high transition-colors font-label-sm text-label-sm" id="btnRefreshQ"><span class="material-symbols-outlined text-[16px]">refresh</span>Muat Ulang</button>
+    </div>
+    <div class="bg-surface-container-low rounded-lg shadow-sm overflow-hidden">
+      <table class="w-full text-left font-code-sm text-code-sm">
+        <thead>
+          <tr class="border-b border-border-subtle bg-surface-container-high">
+            <th class="w-10 px-space-md py-space-sm"><input type="checkbox" id="qCheckAll" class="rounded bg-surface-container-lowest border-border-strong text-primary accent-primary cursor-pointer"></th>
+            <th class="px-space-md py-space-sm text-text-muted">File</th>
+            <th class="px-space-md py-space-sm text-text-muted">Kategori</th>
+            <th class="px-space-md py-space-sm text-text-muted">Ukuran</th>
+            <th class="px-space-md py-space-sm text-text-muted">Retensi s.d.</th>
+            <th class="px-space-md py-space-sm text-text-muted">Dipindahkan</th>
+            <th class="px-space-md py-space-sm text-text-muted">Aksi</th>
+          </tr>
+        </thead>
+        <tbody id="qTbody"></tbody>
+      </table>
+      <div id="qEmpty" class="p-12 flex flex-col items-center justify-center text-center">
+        <span class="material-symbols-outlined text-text-muted text-[48px] mb-2">folder_off</span>
+        <span class="font-body-sm text-body-sm text-text-muted">Karantina kosong</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── PAGE: AUDIT & RIWAYAT ─────────────────────────────── -->
+<div id="page-audit" class="page hidden w-full px-margin py-space-md">
+  <div class="max-w-5xl mx-auto flex flex-col gap-space-md">
+    <span class="font-headline-lg text-headline-lg text-text-primary">Audit &amp; Riwayat</span>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+      <div class="bg-surface-container-low rounded-lg p-space-lg shadow-md flex flex-col gap-space-sm">
+        <div class="flex items-center gap-space-xs"><span class="material-symbols-outlined text-info-sky text-[22px]">analytics</span><span class="font-headline-md text-headline-md text-text-primary">Pemindaian Terakhir</span></div>
+        <div id="auditReportContent" class="font-code-sm text-code-sm text-text-secondary flex flex-col gap-1"></div>
+      </div>
+      <div class="bg-surface-container-low rounded-lg p-space-lg shadow-md flex flex-col gap-space-sm">
+        <div class="flex items-center gap-space-xs"><span class="material-symbols-outlined text-secondary text-[22px]">inventory_2</span><span class="font-headline-md text-headline-md text-text-primary">Status Karantina</span></div>
+        <div id="auditQuarantineContent" class="font-code-sm text-code-sm text-text-secondary flex flex-col gap-1"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── PAGE: PENGATURAN ──────────────────────────────────── -->
+<div id="page-settings" class="page hidden w-full px-margin py-space-md">
+  <div class="max-w-3xl mx-auto flex flex-col gap-space-md">
+    <span class="font-headline-lg text-headline-lg text-text-primary">Pengaturan</span>
+    <div class="bg-surface-container-low rounded-lg p-space-lg shadow-md flex flex-col gap-space-md">
+      <div class="flex items-center gap-space-xs"><span class="material-symbols-outlined text-primary text-[22px]">info</span><span class="font-headline-md text-headline-md text-text-primary">Tentang Bersihin</span></div>
+      <p class="font-body-sm text-body-sm text-text-secondary">Bersihin adalah aplikasi pembersih penyimpanan yang aman untuk Windows. File tidak langsung dihapus permanen, melainkan dipindahkan ke Quarantine dan bisa dipulihkan kapan saja selama masa retensi berlaku.</p>
+      <div class="flex flex-col gap-1 bg-surface-container-lowest p-space-sm rounded-lg font-code-sm text-code-sm">
+        <div class="flex justify-between"><span class="text-text-muted">Versi</span><span class="text-text-primary">1.0.0</span></div>
+        <div class="flex justify-between"><span class="text-text-muted">Data Directory</span><span class="text-text-primary break-all text-right" id="settingsDataDir">--</span></div>
+        <div class="flex justify-between"><span class="text-text-muted">Backend</span><span class="text-text-primary">Go + Wails v2</span></div>
+        <div class="flex justify-between"><span class="text-text-muted">Frontend</span><span class="text-text-primary">Tailwind CSS + WebView2</span></div>
+      </div>
+      <div class="flex items-center gap-space-xs px-space-sm py-1 rounded bg-safety-safe-tint text-safety-safe font-code-sm text-code-sm">
+        <span class="material-symbols-outlined text-[16px]">verified_user</span>
+        <span>Validasi 7-Langkah • Audit Trail • Confidence Scoring • Deduplikasi SHA-256</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<!-- ═══ BOTTOM ACTION BAR (scan) ════════════════════════════ -->
+<div class="fixed bottom-0 left-0 right-0 z-40 bg-surface-container-low/95 backdrop-blur-md shadow-[0_-4px_20px_rgba(0,0,0,0.5)] hidden" id="summaryBar">
+<div class="max-w-7xl mx-auto px-margin py-3 flex flex-col md:flex-row items-center justify-between gap-space-md">
+  <div class="flex flex-col sm:flex-row sm:items-center gap-space-md">
+    <div class="flex items-center gap-space-sm">
+      <span class="material-symbols-outlined text-secondary text-[26px]">task_alt</span>
+      <div class="flex flex-col">
+        <div class="flex items-center gap-1.5 font-metric-display text-metric-display text-text-primary">
+          <span id="sumSelectedFiles">0</span>
+          <span class="font-body-sm text-body-sm text-text-muted">file terpilih</span>
+          <span class="text-text-muted font-normal">&bull;</span>
+          <span class="text-primary font-bold" id="sumSelectedSize">0 B</span>
+          <span class="font-body-sm text-body-sm text-text-secondary">akan dibebaskan</span>
+        </div>
+        <span class="font-body-sm text-body-sm text-text-muted">Dapat dipulihkan kapan saja dari tab Karantina selama masa retensi.</span>
+      </div>
+    </div>
+  </div>
+  <div class="flex flex-wrap items-center gap-space-sm w-full md:w-auto justify-end">
+    <button class="px-space-md py-2 rounded-lg bg-surface-container-high text-secondary hover:bg-surface-bright font-label-md text-label-md font-semibold transition-colors shadow-sm" id="selectSafeBtn" type="button">Pilih Semua Aman (&ge;90%)</button>
+    <button class="px-space-md py-2 rounded-lg bg-surface-container-high text-text-muted hover:text-on-surface hover:bg-surface-bright font-label-md text-label-md transition-colors shadow-sm" id="clearSelBtn" type="button">Kosongkan Pilihan</button>
+    <button class="flex items-center gap-space-sm px-space-lg py-2.5 rounded-lg bg-safety-danger hover:bg-safety-danger-hover text-text-primary font-label-md text-label-md font-bold transition-all shadow-[0_0_20px_rgba(239,68,68,0.35)] active:scale-95 disabled:opacity-40 disabled:pointer-events-none" id="executePurgeBtn" disabled type="button">
+      <span class="material-symbols-outlined text-[20px]">shield</span>
+      <span>PINDAHKAN KE KARANTINA (HAPUS AMAN)</span>
+    </button>
+  </div>
+</div>
+</div>
+
+<!-- ═══ SCAN OVERLAY ═══════════════════════════ -->
+<div class="fixed inset-0 z-[60] hidden items-center justify-center bg-background/70 backdrop-blur-sm" id="scanOverlay">
+  <div class="w-[min(560px,92vw)] flex flex-col bg-surface-container-high rounded-xl border border-surface-variant/50 shadow-[0_24px_60px_rgba(0,0,0,0.7)] overflow-hidden">
+    <div class="flex items-center gap-space-sm px-space-lg py-space-md border-b border-surface-variant/40">
+      <span class="material-symbols-outlined text-secondary text-[22px] spin">radar</span>
+      <div class="flex flex-col min-w-0">
+        <span class="font-headline-md text-headline-md text-text-primary" id="scanOverlayTitle">Memindai...</span>
+        <span class="font-body-sm text-body-sm text-text-secondary truncate" id="scanOverlaySub">menyiapkan...</span>
+      </div>
+    </div>
+    <div class="px-space-lg py-space-md flex flex-col gap-space-sm">
+      <div class="flex items-center justify-between">
+        <span class="font-code-sm text-code-sm text-info-sky" id="scanOverlayPhase">Memulai pemindaian...</span>
+        <span class="font-code-sm text-code-sm text-text-muted" id="scanOverlayPath">-</span>
+      </div>
+      <div class="w-full h-2 rounded-full bg-surface-container-lowest overflow-hidden">
+        <div class="h-full bg-gradient-to-r from-secondary to-primary rounded-full transition-all duration-200" id="scanOverlayBar" style="width:0%"></div>
+      </div>
+      <div class="flex items-center gap-space-xs min-w-0 mt-1">
+        <span class="material-symbols-outlined text-[16px] text-info-sky shrink-0">description</span>
+        <span class="font-code-sm text-code-sm text-text-primary truncate" id="scanOverlayFile">menyiapkan...</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MOVE-TO-QUARANTINE OVERLAY ═══════════════════════════ -->
+<div class="fixed inset-0 z-[60] hidden items-center justify-center bg-background/70 backdrop-blur-sm" id="moveOverlay">
+  <div class="w-[min(560px,92vw)] max-h-[80vh] flex flex-col bg-surface-container-high rounded-xl border border-surface-variant/50 shadow-[0_24px_60px_rgba(0,0,0,0.7)] overflow-hidden">
+    <div class="flex items-center gap-space-sm px-space-lg py-space-md border-b border-surface-variant/40">
+      <span class="material-symbols-outlined text-secondary text-[22px] spin">shield_lock</span>
+      <div class="flex flex-col min-w-0">
+        <span class="font-headline-md text-headline-md text-text-primary" id="moveOverlayTitle">Memindahkan ke Karantina...</span>
+        <span class="font-body-sm text-body-sm text-text-secondary truncate" id="moveOverlaySub">Menyalin file ke penyimpanan aman dengan validasi SHA-256.</span>
+      </div>
+    </div>
+    <div class="px-space-lg py-space-md flex flex-col gap-space-sm">
+      <div class="flex items-center justify-between">
+        <span class="font-code-sm text-code-sm text-info-sky" id="moveProgressText">0 / 0</span>
+        <span class="font-code-sm text-code-sm text-text-muted" id="moveProgressPct">0%</span>
+      </div>
+      <div class="w-full h-2 rounded-full bg-surface-container-lowest overflow-hidden">
+        <div class="h-full bg-primary rounded-full transition-all duration-200" id="moveProgressBar" style="width:0%"></div>
+      </div>
+      <div class="flex items-center gap-space-xs min-w-0 mt-1">
+        <span class="material-symbols-outlined text-[16px] text-info-sky shrink-0">description</span>
+        <span class="font-code-sm text-code-sm text-text-primary truncate" id="moveCurrentFile">menyiapkan...</span>
+      </div>
+    </div>
+    <div class="border-t border-surface-variant/40">
+      <div class="flex items-center justify-between px-space-lg py-2">
+        <span class="font-label-md text-label-md text-text-muted">Daftar file yang dipindahkan</span>
+        <span class="font-code-sm text-code-sm text-text-muted" id="moveDoneCount">0 selesai</span>
+      </div>
+      <div class="max-h-[38vh] overflow-y-auto scrollable px-space-lg pb-space-md flex flex-col gap-1" id="moveFileList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ TOAST ═══════════════════════════════════════════════ -->
+<div class="fixed bottom-20 right-6 z-50 transform translate-y-24 opacity-0 pointer-events-none transition-all duration-300 w-80 bg-surface-container-high/95 backdrop-blur-xl rounded-lg p-space-md shadow-[0_8px_24px_rgba(0,0,0,0.6)]" id="toastNotification">
+<div class="flex items-start gap-space-sm">
+  <span class="material-symbols-outlined text-secondary text-[22px] shrink-0 mt-0.5" id="toastIcon">check_circle</span>
+  <div class="flex flex-col">
+    <span class="font-headline-md text-headline-md text-text-primary" id="toastTitle"></span>
+    <span class="font-body-sm text-body-sm text-text-secondary mt-0.5" id="toastMessage"></span>
+  </div>
+</div>
+</div>
+
+<script src="./src/main.js" type="module"></script>
+</body>
+</html>

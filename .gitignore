@@ -1,0 +1,29 @@
+# Build output
+build/bin/
+frontend/dist/
+
+# Node dependencies
+node_modules/
+
+# Wails generated cache
+frontend/package.json.md5
+build/windows/installer/tmp/
+
+# Go build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test / temp
+*.test
+*.out
+vendor/
+
+# Logs & editor
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

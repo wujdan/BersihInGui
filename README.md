@@ -11,7 +11,7 @@ Dibangun dengan **Wails v2** (Go + Web) untuk GUI dan **Cobra** untuk mode CLI.
 ## Download
 
 - **End-user:** unduh installer siap pakai dari [Releases](https://github.com/wujdan/BersihInGui/releases).
-  > Versi installer untuk pengguna non-teknis — wizard instalasi, shortcut otomatis, uninstall lengkap.
+  > Versi installer untuk pengguna non-teknis - wizard instalasi, shortcut otomatis, uninstall lengkap.
 - **Developer:** clone repo & build dari source (lihat [Build (Production)](#build-production)).
 - **Mode CLI (tanpa GUI):** repo khusus → [wujdan/BersihInCli](https://github.com/wujdan/BersihInCli.git)
 
@@ -26,18 +26,18 @@ Dibangun dengan **Wails v2** (Go + Web) untuk GUI dan **Cobra** untuk mode CLI.
   - Installer Lama (≥90 hari)
   - File Besar Tidak Terpakai (≥100 MB & ≥365 hari)
   - Sisa Aplikasi Terhapus (via registry Windows + Program Files)
-- **Karantina berbasis manifest SHA-256** — file diverifikasi sebelum dihapus,
+- **Karantina berbasis manifest SHA-256** - file diverifikasi sebelum dihapus,
   dan bisa dipulihkan selama masa retensi.
-- **Audit trail** — seluruh proses tercatat dalam log.
-- **Live progress** — tampilan progres pemindaian & pemindahan secara real-time.
+- **Audit trail** - seluruh proses tercatat dalam log.
+- **Live progress** - tampilan progres pemindaian & pemindahan secara real-time.
 - **Mode CLI** untuk skrip / cron (`--yes` non-interaktif).
 
 ## Persyaratan
 
 - [Go 1.27+](https://go.dev/dl/)
 - [Node.js 18+ dan npm](https://nodejs.org/)
-- [Wails v2](https://wails.io/) — CLI untuk dev & build
-- Windows (WebView2) — fitur deteksi drive/orphan spesifik Windows
+- [Wails v2](https://wails.io/) - CLI untuk dev & build
+- Windows (WebView2) - fitur deteksi drive/orphan spesifik Windows
 
 ## Menjalankan (Development)
 
@@ -67,8 +67,8 @@ Hasil installer berada di `build/bin/Bersihin-amd64-installer.exe`.
    (atau hasil `wails build --nsis`).
 2. Jalankan installer dengan **klik dua kali** (butuh hak administrator).
 3. Ikuti langkah pada wizard instalasi:
-   - **Welcome** — klik *Next*.
-   - **Choose Install Location** — pilih folder tujuan
+   - **Welcome** - klik *Next*.
+   - **Choose Install Location** - pilih folder tujuan
      (default: `C:\Program Files\...`), lalu klik *Install*.
    - Tunggu sampai proses selesai, lalu klik *Finish*.
 4. Setelah selesai:
@@ -87,8 +87,8 @@ masih dibutuhkan dari karantina sebelum melakukan uninstalasi.
 
 Cara uninstal:
 
-1. **Lewat Start Menu** — cari folder *Bersihin* → klik **Uninstall Bersihin**.
-   Atau **lewati Pengaturan Windows** — buka *Settings → Apps → Installed apps*,
+1. **Lewat Start Menu** - cari folder *Bersihin* → klik **Uninstall Bersihin**.
+   Atau **lewati Pengaturan Windows** - buka *Settings → Apps → Installed apps*,
    cari *Bersihin*, lalu klik *Uninstall*.
 2. Konfirmasi pada jendela uninstaller; proses berjalan otomatis.
 3. Setelah selesai, berikut ini ikut terhapus semuanya secara otomatis:
@@ -149,7 +149,7 @@ frontend/                 GUI Wails (Vanilla JS + Tailwind CSS 4 + Vite)
 ## Keamanan
 
 - Setiap file yang dikarantina diverifikasi SHA-256 sebelum dihapus permanen.
-- File tidak langsung dihapus — dipindah ke direktori karantina terlebih dulu
+- File tidak langsung dihapus - dipindah ke direktori karantina terlebih dulu
   dan dapat dipulihkan selama masa retensi (default 30 hari).
 - Folder sistem dan program secara default dikecualikan dari pemindaian.
 

@@ -56,7 +56,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   initBottomBarButtons();
   initQuarantineButtons();
   await loadDrives();
-  await tryLoadLastReport();
 });
 
 // ── Navigation ─────────────────────────────────────────────────
@@ -866,16 +865,4 @@ function showToast(title, message, icon) {
     toast.classList.remove('translate-y-0','opacity-100');
     toast.classList.add('translate-y-24','opacity-0','pointer-events-none');
   }, 3500);
-}
-
-// ── Try load last report on startup ────────────────────────────
-async function tryLoadLastReport() {
-  try {
-    const report = await GetLastReport();
-    if (report && report.candidates && report.candidates.length > 0) {
-      scanReport = report;
-      renderResults(scanReport);
-    }
-  } catch(e) { /* no prior report */ }
-  try { document.getElementById('settingsDataDir').textContent = '...'; } catch(e) {}
 }

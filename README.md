@@ -13,6 +13,7 @@ Dibangun dengan **Wails v2** (Go + Web) untuk GUI dan **Cobra** untuk mode CLI.
 - **End-user:** unduh installer siap pakai dari [Releases](https://github.com/wujdan/BersihInGui/releases).
   > Versi installer untuk pengguna non-teknis — wizard instalasi, shortcut otomatis, uninstall lengkap.
 - **Developer:** clone repo & build dari source (lihat [Build (Production)](#build-production)).
+- **Mode CLI (tanpa GUI):** repo khusus → [wujdan/BersihInCli](https://github.com/wujdan/BersihInCli.git)
 
 > Catatan: versi installer end-user akan menyusul. Halaman Releases diperbarui saat rilis baru dipublikasikan.
 
@@ -100,6 +101,9 @@ Cara uninstal:
 Tidak diperlukan langkah pembersihan manual tambahan.
 
 ## Mode CLI
+
+> Untuk menjalankan versi CLI (tanpa GUI), langsung akses repo khusus:
+> **[wujdan/BersihInCli](https://github.com/wujdan/BersihInCli.git)**.
 
 Binary yang sama juga menyediakan antarmuka CLI:
 

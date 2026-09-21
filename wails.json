@@ -8,5 +8,12 @@
   "frontend:dev:serverUrl": "auto",
   "author": {
     "name": "Danss"
+  },
+  "info": {
+    "companyName": "Bersihin",
+    "productName": "Bersihin",
+    "productVersion": "1.0.0",
+    "copyright": "(c) 2026 Danss",
+    "comments": "Bersihin – Storage Optimizer"
   }
 }

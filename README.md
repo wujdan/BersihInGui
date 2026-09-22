@@ -155,4 +155,4 @@ frontend/                 GUI Wails (Vanilla JS + Tailwind CSS 4 + Vite)
 
 ## Lisensi
 
-[MIT](LICENSE) © 2026 Danss
+[MIT](LICENSE) © 2026 Wujdan

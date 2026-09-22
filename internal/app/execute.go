@@ -48,14 +48,14 @@ func (a *App) executeMoves(_ context.Context, report *models.ScanReport, sel map
 
 	// 2. Move to quarantine (document tahap 10).
 	var (
-		mu       sync.Mutex
+		mu        sync.Mutex
 		succeeded int
 		failed    int
 		freed     int64
 		firstErr  error
 	)
 	var wg sync.WaitGroup
-	sem := make(chan struct{}, 4)
+	sem := make(chan struct{}, 8)
 	for _, c := range validated {
 		sem <- struct{}{}
 		wg.Add(1)
@@ -87,6 +87,11 @@ func (a *App) executeMoves(_ context.Context, report *models.ScanReport, sel map
 		}(c)
 	}
 	wg.Wait()
+
+	// Persist the whole manifest once at the end (fast batch).
+	if err := a.quarantine.Persist(); err != nil && firstErr == nil {
+		firstErr = fmt.Errorf("persist manifest: %w", err)
+	}
 
 	return ui.MoveOutcome{Succeeded: succeeded, Failed: failed, Freed: freed, Err: firstErr}
 }

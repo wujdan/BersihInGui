@@ -45,6 +45,7 @@ let allDrives = [];
 let scanReport = null;
 let selectedKeys = new Set();
 let scanning = false;
+let currentPage = 'page-scan';
 
 // ── Init ───────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
@@ -72,8 +73,10 @@ function switchPage(pageId) {
   document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
   const page = document.getElementById(pageId);
   if (page) page.classList.remove('hidden');
+  currentPage = pageId;
   if (pageId === 'page-quarantine') loadQuarantine();
   if (pageId === 'page-audit') loadAuditPage();
+  if (pageId !== 'page-scan') { document.getElementById('summaryBar').classList.add('hidden'); document.body.classList.remove('summary-active'); }
 }
 
 // ── Scan mode buttons ──────────────────────────────────────────
@@ -476,8 +479,8 @@ function updateSummary() {
   }
   countEl.textContent = count.toLocaleString('id-ID');
   sizeEl.textContent = formatBytes(freed);
-  if (count > 0) { bar.classList.remove('hidden'); btn.disabled = false; }
-  else { bar.classList.add('hidden'); btn.disabled = true; }
+  if (currentPage === 'page-scan' && count > 0) { bar.classList.remove('hidden'); btn.disabled = false; document.body.classList.add('summary-active'); }
+  else { bar.classList.add('hidden'); btn.disabled = true; document.body.classList.remove('summary-active'); }
   // donut gauge text
   if (scanReport && scanReport.candidates && scanReport.candidates.length > 0) {
     const totalCand = scanReport.candidates.reduce((s,c)=>s+c.total_bytes,0);
@@ -568,7 +571,11 @@ function initBottomBarButtons() {
     showToast('Pilihan Dikosongkan', 'Semua kategori telah dinonaktifkan.', 'info');
   });
 
-  document.getElementById('executePurgeBtn').addEventListener('click', async () => {
+  document.getElementById('executePurgeBtn').addEventListener('click', executeQuarantine);
+}
+
+async function executeQuarantine() {
+    if (!scanReport || !scanReport.candidates) return;
     if (selectedKeys.size === 0) return;
     const btn = document.getElementById('executePurgeBtn');
     btn.disabled = true;
@@ -713,7 +720,6 @@ function initBottomBarButtons() {
       showToast('Error', String(e), 'error');
     }
     finally { btn.disabled = false; }
-  });
 }
 
 // ── Quarantine ─────────────────────────────────────────────────

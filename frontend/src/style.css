@@ -226,6 +226,14 @@
   }
 }
 
+/* ── Bottom action bar spacing ─────────────────────────────── */
+#scanContentWrap, #page-quarantine {
+  transition: padding-bottom 0.2s ease;
+}
+body.summary-active #scanContentWrap {
+  padding-bottom: 7rem;
+}
+
 /* ── Accordion transition ──────────────────────────────────── */
 .cat-body {
   display: flex;

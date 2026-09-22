@@ -1,0 +1,89 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Bersihin: Alur Pindai hingga Karantina",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "happy-path",
+        "label": "Alur utama",
+        "focus": ["pick", "scanRun", "classify", "validate", "select", "quarantine", "blob"],
+        "note": "Dari pemilihan target hingga file tersimpan aman di karantina."
+      },
+      {
+        "id": "safety-gate",
+        "label": "Gerbang keamanan",
+        "focus": ["validate", "skip", "quarantine", "restore", "purge"],
+        "note": "File yang tidak lolos validasi hanya dilewati, tidak pernah dihapus."
+      }
+    ]
+  },
+  "lanes": [
+    { "id": "gui", "label": "GUI Pengguna" },
+    { "id": "app", "label": "Backend (Go / Wails)" },
+    { "id": "safe", "label": "Keamanan & Retensi", "variant": "exception" },
+    { "id": "store", "label": "Penyimpanan Karantina" }
+  ],
+  "phases": [
+    { "id": "prep", "label": "Persiapan", "fromCol": 0, "toCol": 0 },
+    { "id": "scan", "label": "Pindai & Klasifikasi", "fromCol": 1, "toCol": 2 },
+    { "id": "review", "label": "Validasi & Tinjau", "fromCol": 3, "toCol": 3, "variant": "emphasis" },
+    { "id": "move", "label": "Karantina", "fromCol": 4, "toCol": 4, "variant": "emphasis" },
+    { "id": "manage", "label": "Pulihkan / Hapus", "fromCol": 5, "toCol": 5, "variant": "dashed" }
+  ],
+  "groups": [
+    { "id": "safety_gate", "label": "Validasi 7 Langkah", "lane": "safe", "fromCol": 2, "toCol": 3, "variant": "security" },
+    { "id": "vault", "label": "Manifest SHA-256", "lane": "store", "fromCol": 3, "toCol": 5, "variant": "dashed" }
+  ],
+  "mainPath": ["pick", "scanRun", "classify", "validate", "select", "quarantine", "blob"],
+  "nodes": [
+    { "id": "pick", "lane": "gui", "col": 0, "type": "frontend", "label": "Pilih Target", "sublabel": "drive / folder", "width": 120 },
+    { "id": "select", "lane": "gui", "col": 3, "type": "frontend", "label": "Hasil & Pilih", "sublabel": "kategori + checkbox", "width": 120 },
+    { "id": "scanRun", "lane": "app", "col": 1, "type": "backend", "label": "Scan()", "sublabel": "panggil engine" },
+    { "id": "classify", "lane": "app", "col": 2, "type": "backend", "label": "Klasifikasi", "sublabel": "6 kategori + skor", "width": 120 },
+    { "id": "quarantine", "lane": "app", "col": 4, "type": "backend", "label": "Pindah Karantina", "sublabel": "MoveToQuarantine", "tag": "rename / copy", "width": 148 },
+    { "id": "validate", "lane": "app", "col": 3, "type": "security", "label": "Validasi 7 Langkah", "sublabel": "safety.Validate", "width": 132 },
+    { "id": "skip", "lane": "safe", "col": 3, "type": "security", "label": "Dilewati", "sublabel": "dipakai / berubah / ragu", "tag": "tidak dihapus", "width": 132 },
+    { "id": "blob", "lane": "store", "col": 4, "type": "database", "label": "Karantina", "sublabel": "blob + manifest", "width": 120 },
+    { "id": "restore", "lane": "app", "col": 5, "type": "backend", "label": "Restore", "sublabel": "ke lokasi asal", "width": 120 },
+    { "id": "purge", "lane": "safe", "col": 5, "type": "security", "label": "Purge", "sublabel": "hapus permanen", "width": 120 }
+  ],
+  "edges": [
+    { "id": "e1", "from": "pick", "to": "scanRun", "label": "mulai scan", "variant": "emphasis" },
+    { "id": "e2", "from": "scanRun", "to": "classify" },
+    { "id": "e3", "from": "classify", "to": "validate", "label": "daftar kandidat", "variant": "emphasis" },
+    { "id": "e4", "from": "validate", "to": "select", "label": "lolos", "variant": "emphasis" },
+    { "id": "e5", "from": "validate", "to": "skip", "label": "gagal", "variant": "security", "role": "error" },
+    { "id": "e6", "from": "select", "to": "quarantine", "label": "kirim pilihan", "variant": "emphasis" },
+    { "id": "e7", "from": "quarantine", "to": "blob", "variant": "emphasis" },
+    { "id": "e9", "from": "blob", "to": "restore", "label": "pulihkan (manual)", "role": "branch" },
+    { "id": "e10", "from": "blob", "to": "purge", "label": "expired / force", "variant": "security", "role": "error", "route": "outside-right" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Alur Utama",
+      "items": [
+        "Scan → klasifikasi → validasi → karantina",
+        "File selalu masuk karantina dulu, baru bisa dihapus permanen"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Keamanan 7 Langkah",
+      "items": [
+        "Meta file diverifikasi sebelum dipindahkan",
+        "File yang dipakai / berubah hanya dilewati, tidak dihapus"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Karantina & Retensi",
+      "items": [
+        "SHA-256 diverifikasi saat dipindah dan saat dipulihkan",
+        "Purge permanen hanya setelah retensi habis atau perintah eksplisit"
+      ]
+    }
+  ]
+}

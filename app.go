@@ -362,40 +362,73 @@ func (a *App) MoveToQuarantine(keys []string) MoveOutcome {
 	var details []string
 	var movedKeys []string
 
-	for idx, key := range keys {
-		current := idx + 1
-		var cand *models.Candidate
-		for _, c := range report.Candidates {
-			if c.Key() == key {
-				cand = c
-				break
-			}
-		}
+	// build candidate lookup once (avoids O(n²) scan per key)
+	byKey := make(map[string]*models.Candidate, len(report.Candidates))
+	for _, c := range report.Candidates {
+		byKey[c.Key()] = c
+	}
+
+	var (
+		mu    sync.Mutex
+		wg    sync.WaitGroup
+	)
+	sem := make(chan struct{}, 8)
+	processed := 0
+	for _, key := range keys {
+		cand := byKey[key]
 		if cand == nil {
 			failed++
 			details = append(details, "tidak ditemukan: "+key)
-			a.emitMoveProgress(current, len(keys), key, "skip", "tidak ditemukan")
+			a.emitMoveProgress(processed+1, len(keys), key, "skip", "tidak ditemukan")
+			processed++
 			continue
 		}
 		v := validator.Validate(cand.Meta)
 		if !v.Passed {
 			failed++
 			details = append(details, "skip "+filepath.Base(key)+": "+v.Reason)
-			a.emitMoveProgress(current, len(keys), key, "skip", v.Reason)
+			a.emitMoveProgress(processed+1, len(keys), key, "skip", v.Reason)
+			processed++
 			continue
 		}
-		a.emitMoveProgress(current, len(keys), key, "moving", "")
-		if _, err := a.q.MoveFile(cand); err != nil {
-			failed++
-			details = append(details, "gagal "+filepath.Base(key)+": "+err.Error())
-			a.emitMoveProgress(current, len(keys), key, "fail", err.Error())
-			continue
+
+		sem <- struct{}{}
+		wg.Add(1)
+		go func(cand *models.Candidate, key string) {
+			defer wg.Done()
+			defer func() { <-sem }()
+			a.emitMoveProgress(processed+1, len(keys), key, "moving", "")
+			if _, err := a.q.MoveFile(cand); err != nil {
+				mu.Lock()
+				failed++
+				details = append(details, "gagal "+filepath.Base(key)+": "+err.Error())
+				mu.Unlock()
+				a.emitMoveProgress(processed+1, len(keys), key, "fail", err.Error())
+				return
+			}
+			mu.Lock()
+			succeeded++
+			freed += cand.Meta.Size
+			movedKeys = append(movedKeys, cand.Key())
+			details = append(details, "✔ "+filepath.Base(key))
+			mu.Unlock()
+			a.emitMoveProgress(processed+1, len(keys), key, "done", "")
+		}(cand, key)
+		processed++
+		// periodic persist so a crash mid-batch does not lose the manifest
+		if processed%2000 == 0 {
+			if perr := a.q.Persist(); perr != nil {
+				mu.Lock()
+				details = append(details, "peringatan: persist "+perr.Error())
+				mu.Unlock()
+			}
 		}
-		succeeded++
-		freed += cand.Meta.Size
-		movedKeys = append(movedKeys, cand.Key())
-		details = append(details, "✔ "+filepath.Base(key))
-		a.emitMoveProgress(current, len(keys), key, "done", "")
+	}
+	wg.Wait()
+	if perr := a.q.Persist(); perr != nil {
+		mu.Lock()
+		details = append(details, "peringatan: persist "+perr.Error())
+		mu.Unlock()
 	}
 	a.emitMoveProgress(len(keys), len(keys), "", "done", "")
 

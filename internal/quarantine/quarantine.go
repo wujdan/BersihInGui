@@ -102,6 +102,12 @@ func (q *Dir) persist() error {
 	return os.Rename(tmp, q.manifestsFile())
 }
 
+// Persist writes the current manifest list to disk. Call it once after
+// a batch of moves (instead of once per file) to avoid O(n²) serialization.
+func (q *Dir) Persist() error {
+	return q.persist()
+}
+
 // retentionFor returns the retention days for a category (tahap 10 tiers).
 func (q *Dir) retentionFor(cat models.Category) int {
 	switch cat {
@@ -154,9 +160,6 @@ func (q *Dir) MoveFile(c *models.Candidate) (*Manifest, error) {
 	q.mu.Lock()
 	q.manifests[id] = m
 	q.mu.Unlock()
-	if err := q.persist(); err != nil {
-		return m, fmt.Errorf("persist manifest: %w", err)
-	}
 	return m, nil
 }
 

@@ -101,7 +101,7 @@ func (a *App) AppInfo() map[string]interface{} {
 		dataDir = a.cfg.App.DataDir
 	}
 	return map[string]interface{}{
-		"version":      "1.0.0",
+		"version":      "1.1.0",
 		"data_dir":     dataDir,
 		"platform":     runtime.GOOS,
 	}

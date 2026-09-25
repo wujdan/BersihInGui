@@ -7,13 +7,13 @@
   "frontend:dev:watcher": "npm run dev",
   "frontend:dev:serverUrl": "auto",
   "author": {
-    "name": "Danss"
+    "name": "Wujdan"
   },
   "info": {
     "companyName": "Bersihin",
     "productName": "Bersihin",
-    "productVersion": "1.0.0",
-    "copyright": "(c) 2026 Danss",
+    "productVersion": "1.1.0",
+    "copyright": "(c) 2026 Wujdan",
     "comments": "Bersihin – Storage Optimizer"
   }
 }

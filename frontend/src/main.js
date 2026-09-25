@@ -612,7 +612,11 @@ async function executeQuarantine() {
     titleEl.textContent = 'Memindahkan ke Karantina...';
     subEl.textContent = 'Menyalin file ke penyimpanan aman dengan validasi SHA-256.';
 
+    // Limit rendered rows so huge batches don't flood the DOM; the rest are
+    // tracked by counters only. 200 rows is plenty for a live progress feel.
+    const MAX_ROWS = 200;
     queue.forEach((f, i) => {
+      if (i >= MAX_ROWS) return;
       const row = document.createElement('div');
       row.className = 'flex items-center justify-between px-space-sm py-1.5 rounded-md bg-surface-container-low/50 transition-colors';
       row.dataset.status = 'pending';
@@ -643,8 +647,6 @@ async function executeQuarantine() {
       icon.className = 'material-symbols-outlined text-[16px] shrink-0 row-icon ' + m[1];
       st.textContent = text || m[2];
       st.className = 'font-code-sm text-code-sm shrink-0 row-status ' + (status === 'fail' ? 'text-safety-danger' : status === 'done' ? 'text-secondary' : status === 'skip' ? 'text-text-muted' : 'text-primary');
-      listEl.appendChild(row);
-      listEl.scrollTop = listEl.scrollHeight;
     };
 
     const off = EventsOn('quarantine:progress', (p) => {

@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"storage-optimizer/internal/classifier"
@@ -368,55 +369,100 @@ func (a *App) MoveToQuarantine(keys []string) MoveOutcome {
 		byKey[c.Key()] = c
 	}
 
+	// prepare quarantine blob dir once for the whole batch (no per-file MkdirAll)
+	blobDir, err := a.q.BlobDirFor(time.Now().Format("2006-01-02"))
+	if err != nil {
+		return MoveOutcome{Success: false, Message: "karantina belum siap"}
+	}
+	var seq int64
+
 	var (
-		mu    sync.Mutex
-		wg    sync.WaitGroup
+		mu       sync.Mutex
+		emitMu   sync.Mutex
+		lastEmit time.Time
 	)
-	sem := make(chan struct{}, 8)
-	processed := 0
+	sem := make(chan struct{}, 16)
+	processed := int64(0)
+	emit := func(current int64, key, status, message string) {
+		emitMu.Lock()
+		// throttle: at most ~10 events/s; always let the first and final pass
+		if !lastEmit.IsZero() && time.Since(lastEmit) < 100*time.Millisecond && current < int64(len(keys)) {
+			emitMu.Unlock()
+			return
+		}
+		lastEmit = time.Now()
+		emitMu.Unlock()
+		a.emitMoveProgress(int(current), len(keys), key, status, message)
+	}
+
+	// Phase 1 (parallel): SHA-256 each file concurrently. Renames must stay
+	// serial on NTFS (~10x slower in parallel), but hashing scales with
+	// workers, so split the two stages.
+	var stagedMu sync.Mutex
+	staged := make([]*quarantine.Staged, 0, len(keys))
+	var stageWg sync.WaitGroup
 	for _, key := range keys {
 		cand := byKey[key]
 		if cand == nil {
 			failed++
 			details = append(details, "tidak ditemukan: "+key)
-			a.emitMoveProgress(processed+1, len(keys), key, "skip", "tidak ditemukan")
-			processed++
+			emit(atomic.AddInt64(&processed, 1), key, "skip", "tidak ditemukan")
 			continue
 		}
 		v := validator.Validate(cand.Meta)
 		if !v.Passed {
 			failed++
 			details = append(details, "skip "+filepath.Base(key)+": "+v.Reason)
-			a.emitMoveProgress(processed+1, len(keys), key, "skip", v.Reason)
-			processed++
+			emit(atomic.AddInt64(&processed, 1), key, "skip", v.Reason)
 			continue
 		}
 
 		sem <- struct{}{}
-		wg.Add(1)
+		stageWg.Add(1)
 		go func(cand *models.Candidate, key string) {
-			defer wg.Done()
+			defer stageWg.Done()
 			defer func() { <-sem }()
-			a.emitMoveProgress(processed+1, len(keys), key, "moving", "")
-			if _, err := a.q.MoveFile(cand); err != nil {
+			s, err := a.q.Stage(cand, blobDir, &seq)
+			if err != nil {
 				mu.Lock()
 				failed++
 				details = append(details, "gagal "+filepath.Base(key)+": "+err.Error())
 				mu.Unlock()
-				a.emitMoveProgress(processed+1, len(keys), key, "fail", err.Error())
+				emit(atomic.LoadInt64(&processed), key, "fail", err.Error())
 				return
 			}
-			mu.Lock()
-			succeeded++
-			freed += cand.Meta.Size
-			movedKeys = append(movedKeys, cand.Key())
-			details = append(details, "✔ "+filepath.Base(key))
-			mu.Unlock()
-			a.emitMoveProgress(processed+1, len(keys), key, "done", "")
+			stagedMu.Lock()
+			staged = append(staged, s)
+			stagedMu.Unlock()
 		}(cand, key)
-		processed++
-		// periodic persist so a crash mid-batch does not lose the manifest
-		if processed%2000 == 0 {
+		atomic.AddInt64(&processed, 1)
+	}
+	stageWg.Wait()
+
+	// Phase 2 (serial): rename into quarantine + record manifest. Serial is
+	// faster than any parallel schedule here on NTFS.
+	for i, s := range staged {
+		key := s.Candidate().Key()
+		if _, err := a.q.Commit(s); err != nil {
+			mu.Lock()
+			failed++
+			details = append(details, "gagal "+filepath.Base(key)+": "+err.Error())
+			mu.Unlock()
+			emit(atomic.LoadInt64(&processed), key, "fail", err.Error())
+			continue
+		}
+		mu.Lock()
+		succeeded++
+		freed += s.Candidate().Meta.Size
+		movedKeys = append(movedKeys, key)
+		details = append(details, "✔ "+filepath.Base(key))
+		mu.Unlock()
+		emit(atomic.LoadInt64(&processed), key, "done", "")
+
+		// two middle checkpoints so a crash mid-batch does not lose much
+		// progress; avoids O(n²) by not persisting every few thousand.
+		done := i + 1
+		if done == len(staged)/3 || done == len(staged)*2/3 {
 			if perr := a.q.Persist(); perr != nil {
 				mu.Lock()
 				details = append(details, "peringatan: persist "+perr.Error())
@@ -424,7 +470,6 @@ func (a *App) MoveToQuarantine(keys []string) MoveOutcome {
 			}
 		}
 	}
-	wg.Wait()
 	if perr := a.q.Persist(); perr != nil {
 		mu.Lock()
 		details = append(details, "peringatan: persist "+perr.Error())

@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"storage-optimizer/internal/logging"
 	"storage-optimizer/internal/models"
+	"storage-optimizer/internal/quarantine"
 	"storage-optimizer/internal/safety"
 	"storage-optimizer/internal/ui"
 )
@@ -54,39 +56,77 @@ func (a *App) executeMoves(_ context.Context, report *models.ScanReport, sel map
 		freed     int64
 		firstErr  error
 	)
-	var wg sync.WaitGroup
-	sem := make(chan struct{}, 8)
+	blobDir, err := a.quarantine.BlobDirFor(time.Now().Format("2006-01-02"))
+	if err != nil {
+		return ui.MoveOutcome{Err: fmt.Errorf("prepare quarantine dir: %w", err)}
+	}
+	var seq int64
+
+	// Phase 1 (parallel): SHA-256 + prepare target paths. Renames must stay
+	// serial on NTFS (~10x slower in parallel), so hashing runs on many
+	// workers and the actual move is done sequentially afterwards.
+	staged := make([]*quarantine.Staged, 0, len(validated))
+	var stagedMu sync.Mutex
+	var stageCount int
+	var stageErr error
+	var stageWg sync.WaitGroup
+	sem := make(chan struct{}, 16)
 	for _, c := range validated {
 		sem <- struct{}{}
-		wg.Add(1)
+		stageWg.Add(1)
 		go func(c *models.Candidate) {
-			defer wg.Done()
+			defer stageWg.Done()
 			defer func() { <-sem }()
-			manifest, err := a.quarantine.MoveFile(c)
+			s, err := a.quarantine.Stage(c, blobDir, &seq)
 			if err != nil {
 				mu.Lock()
-				failed++
-				if firstErr == nil {
-					firstErr = fmt.Errorf("move %s: %w", c.Meta.Path, err)
+				if stageErr == nil {
+					stageErr = fmt.Errorf("hash %s: %w", c.Meta.Path, err)
 				}
 				mu.Unlock()
-				logger.Error(logging.EventQuarantineMove, "gagal pindahkan ke quarantine", map[string]interface{}{
-					"path": c.Meta.Path, "error": err.Error(),
-				})
 				return
 			}
+			stagedMu.Lock()
+			staged = append(staged, s)
+			stagedMu.Unlock()
 			mu.Lock()
-			succeeded++
-			freed += manifest.Size
+			stageCount++
 			mu.Unlock()
-			logger.Info(logging.EventQuarantineMove, "pindahkan ke quarantine", map[string]interface{}{
-				"id": manifest.ID, "path": manifest.OriginalPath,
-				"quarantine": manifest.QuarantinePath, "size": manifest.Size,
-				"retention_until": manifest.RetentionUntil.Format("2006-01-02"),
-			})
 		}(c)
 	}
-	wg.Wait()
+	stageWg.Wait()
+
+	// Phase 2 (serial): rename into quarantine + record manifest.
+	for _, s := range staged {
+		manifest, err := a.quarantine.Commit(s)
+		if err != nil {
+			mu.Lock()
+			failed++
+			if firstErr == nil {
+				firstErr = fmt.Errorf("move %s: %w", s.Candidate().Meta.Path, err)
+			}
+			mu.Unlock()
+			logger.Error(logging.EventQuarantineMove, "gagal pindahkan ke quarantine", map[string]interface{}{
+				"path": s.Candidate().Meta.Path, "error": err.Error(),
+			})
+			continue
+		}
+		mu.Lock()
+		succeeded++
+		freed += manifest.Size
+		mu.Unlock()
+		logger.Info(logging.EventQuarantineMove, "pindahkan ke quarantine", map[string]interface{}{
+			"id": manifest.ID, "path": manifest.OriginalPath,
+			"quarantine": manifest.QuarantinePath, "size": manifest.Size,
+			"retention_until": manifest.RetentionUntil.Format("2006-01-02"),
+		})
+	}
+	if stageErr != nil {
+		failed = len(validated) - stageCount
+		if firstErr == nil {
+			firstErr = stageErr
+		}
+	}
 
 	// Persist the whole manifest once at the end (fast batch).
 	if err := a.quarantine.Persist(); err != nil && firstErr == nil {

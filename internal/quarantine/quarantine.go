@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"storage-optimizer/internal/config"
@@ -120,47 +121,85 @@ func (q *Dir) retentionFor(cat models.Category) int {
 	}
 }
 
-// MoveFile moves a file into quarantine and records it in the manifest.
-// It computes SHA-256 before the move (audit + integrity).
-func (q *Dir) MoveFile(c *models.Candidate) (*Manifest, error) {
-	src := c.Meta.Path
-	sum, err := hashFile(src)
+// Staged is a candidate that has been hashed and is ready to be committed.
+// Staging is cheap and safe to run concurrently; Commit must be called
+// serially because parallel renames on the same NTFS volume are ~10x slower.
+type Staged struct {
+	cand *models.Candidate
+	id   string
+	dst  string
+	sum  string
+}
+
+// Stage computes the SHA-256 and target path without touching the filesystem.
+func (q *Dir) Stage(c *models.Candidate, blobDir string, seq *int64) (*Staged, error) {
+	sum, err := hashFile(c.Meta.Path)
 	if err != nil {
-		return nil, fmt.Errorf("hash %s: %w", src, err)
+		return nil, fmt.Errorf("hash %s: %w", c.Meta.Path, err)
 	}
+	id := newID(sum, seq)
+	dst := filepath.Join(blobDir, id+"_"+sanitizeName(c.Meta.Name()))
+	return &Staged{cand: c, id: id, dst: dst, sum: sum}, nil
+}
 
-	dir := filepath.Join(q.blobDir, time.Now().Format("2006-01-02"))
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return nil, err
-	}
+// Candidate returns the candidate being committed.
+func (s *Staged) Candidate() *models.Candidate { return s.cand }
 
-	id := fmt.Sprintf("%s-%s", time.Now().Format("20060102_150405"), sum[:8])
-	dst := filepath.Join(dir, id+"_"+sanitizeName(c.Meta.Name()))
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
-		return nil, err
-	}
-	if err := os.Rename(src, dst); err != nil {
+// Commit performs the rename and records the manifest.
+func (q *Dir) Commit(s *Staged) (*Manifest, error) {
+	if err := os.Rename(s.cand.Meta.Path, s.dst); err != nil {
 		// Windows cannot rename across drives; fall back to copy+delete.
-		if err2 := copyMove(src, dst); err2 != nil {
-			return nil, fmt.Errorf("move %s -> %s: %w", src, dst, err2)
+		if err2 := copyMove(s.cand.Meta.Path, s.dst); err2 != nil {
+			return nil, fmt.Errorf("move %s -> %s: %w", s.cand.Meta.Path, s.dst, err2)
 		}
 	}
-
 	m := &Manifest{
-		ID:             id,
-		OriginalPath:   src,
-		QuarantinePath: dst,
-		Size:           c.Meta.Size,
-		SHA256:         sum,
+		ID:             s.id,
+		OriginalPath:   s.cand.Meta.Path,
+		QuarantinePath: s.dst,
+		Size:           s.cand.Meta.Size,
+		SHA256:         s.sum,
 		MovedAt:        time.Now(),
-		RetentionUntil: time.Now().AddDate(0, 0, q.retentionFor(c.Category)),
-		Category:       string(c.Category),
-		Label:          string(c.Label),
+		RetentionUntil: time.Now().AddDate(0, 0, q.retentionFor(s.cand.Category)),
+		Category:       string(s.cand.Category),
+		Label:          string(s.cand.Label),
 	}
 	q.mu.Lock()
-	q.manifests[id] = m
+	q.manifests[s.id] = m
 	q.mu.Unlock()
 	return m, nil
+}
+
+// MoveFile moves a file into a prepared blobDir and records it in the manifest.
+// It computes SHA-256 before the move (audit + integrity) and uses seq to build
+// collision-free ids when many files (including duplicates) move in one second.
+func (q *Dir) MoveFile(c *models.Candidate, blobDir string, seq *int64) (*Manifest, error) {
+	s, err := q.Stage(c, blobDir, seq)
+	if err != nil {
+		return nil, err
+	}
+	return q.Commit(s)
+}
+
+// newID builds a unique quarantine id: timestamp + sequence + sha prefix.
+// Using an atomically-incremented sequence guarantees uniqueness even when
+// duplicate files (identical sha256) are moved within the same second.
+func newID(sum string, seq *int64) string {
+	var n int64
+	if seq != nil {
+		n = atomic.AddInt64(seq, 1)
+	}
+	return fmt.Sprintf("%s-%05d-%s", time.Now().Format("20060102150405"), n, sum[:8])
+}
+
+// BlobDirFor returns (and creates) the blob directory for a given batch.
+// Call it once before a batch instead of per file to avoid repeated MkdirAll.
+func (q *Dir) BlobDirFor(day string) (string, error) {
+	dir := filepath.Join(q.blobDir, day)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", err
+	}
+	return dir, nil
 }
 
 // Restore moves a quarantined file back to its original location.

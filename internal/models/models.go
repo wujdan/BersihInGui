@@ -98,14 +98,18 @@ type CategorySummary struct {
 
 // ScanReport is the result of a full scan.
 type ScanReport struct {
-	GeneratedAt  time.Time          `json:"generated_at"`
-	Duration     time.Duration      `json:"duration_seconds"`
-	Roots        []string           `json:"roots"`
-	FilesScanned int                `json:"files_scanned"`
-	TotalBytes   int64              `json:"total_bytes"`
-	DirsScanned  int                `json:"dirs_scanned"`
-	Candidates   []*Candidate       `json:"candidates"`
-	Errors       []string           `json:"errors"`
+	GeneratedAt     time.Time          `json:"generated_at"`
+	Duration        time.Duration      `json:"duration_seconds"`
+	Roots           []string           `json:"roots"`
+	FilesScanned    int                `json:"files_scanned"`
+	TotalBytes      int64              `json:"total_bytes"`
+	DirsScanned     int                `json:"dirs_scanned"`
+	Candidates      []*Candidate       `json:"candidates"`
+	Errors          []string           `json:"errors"`
+	ProtectedCount  int                `json:"protected_count"`
+	ProtectedBytes  int64              `json:"protected_bytes"`
+	ProtectedPhotos int                `json:"protected_photos"`
+	ProtectedDocs   int                `json:"protected_docs"`
 }
 
 // ByCategory groups candidates into ordered summaries.

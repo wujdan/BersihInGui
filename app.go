@@ -94,6 +94,37 @@ func (a *App) GetDrives() []DriveInfo {
 	return out
 }
 
+func isMediaExt(ext string) bool {
+	m := map[string]bool{
+		".jpg": true, ".jpeg": true, ".jpe": true, ".jfif": true, ".png": true, ".gif": true,
+		".bmp": true, ".tiff": true, ".tif": true, ".svg": true, ".webp": true, ".avif": true,
+		".heic": true, ".heif": true, ".raw": true, ".cr2": true, ".cr3": true, ".nef": true,
+		".nrw": true, ".arw": true, ".raf": true, ".orf": true, ".pef": true, ".srw": true,
+		".dng": true, ".rw2": true, ".x3f": true, ".iiq": true,
+		".mp4": true, ".mkv": true, ".avi": true, ".mov": true, ".wmv": true, ".flv": true,
+		".webm": true, ".m4v": true, ".3gp": true, ".3g2": true, ".mpg": true, ".mpeg": true,
+		".m2ts": true, ".mts": true, ".ts": true, ".vob": true, ".ogv": true, ".divx": true,
+		".xvid": true,
+		".mp3": true, ".wav": true, ".flac": true, ".aac": true, ".m4a": true, ".ogg": true,
+		".opus": true, ".wma": true, ".aiff": true, ".aif": true, ".alac": true,
+	}
+	return m[ext]
+}
+
+func isDocExt(base, ext string) bool {
+	if map[string]bool{".doc": true, ".docx": true, ".xls": true, ".xlsx": true, ".ppt": true, ".pptx": true,
+		".pdf": true, ".txt": true, ".odt": true, ".rtf": true, ".md": true, ".markdown": true,
+		".epub": true, ".mobi": true, ".pages": true, ".numbers": true, ".key": true}[ext] {
+		return true
+	}
+	return false
+}
+
+func importantName(base string) bool {
+	m := map[string]bool{".gitignore": true, ".gitkeep": true, ".env": true}
+	return m[base]
+}
+
 // AppInfo returns basic app information for the settings page.
 func (a *App) AppInfo() map[string]interface{} {
 	dataDir := ""
@@ -160,15 +191,20 @@ type ScanProgress struct {
 
 // ScanReportDTO is what the UI receives after a scan.
 type ScanReportDTO struct {
-	GeneratedAt  string         `json:"generated_at"`
-	DurationMs   float64        `json:"duration_ms"`
-	Roots        []string       `json:"roots"`
-	FilesScanned int            `json:"files_scanned"`
-	DirsScanned  int            `json:"dirs_scanned"`
-	TotalBytes   int64          `json:"total_bytes"`
-	TotalHuman   string         `json:"total_human"`
-	Candidates   []CategoryInfo `json:"candidates"`
-	Errors       []string       `json:"errors"`
+	GeneratedAt     string         `json:"generated_at"`
+	DurationMs      float64        `json:"duration_ms"`
+	Roots           []string       `json:"roots"`
+	FilesScanned    int            `json:"files_scanned"`
+	DirsScanned     int            `json:"dirs_scanned"`
+	TotalBytes      int64          `json:"total_bytes"`
+	TotalHuman      string         `json:"total_human"`
+	Candidates      []CategoryInfo `json:"candidates"`
+	Errors          []string       `json:"errors"`
+	ProtectedCount  int            `json:"protected_count"`
+	ProtectedBytes  int64          `json:"protected_bytes"`
+	ProtectedHuman  string         `json:"protected_human"`
+	ProtectedPhotos int            `json:"protected_photos"`
+	ProtectedDocs   int            `json:"protected_docs"`
 }
 
 // ScanResult is the full output type.
@@ -282,6 +318,30 @@ func (a *App) Scan(root string, mode string) ScanResult {
 		f := &files[i]
 		if c := cl.Classify(f, dupMap[f.Path]); c != nil {
 			report.Candidates = append(report.Candidates, c)
+		} else {
+			// Track protected files for transparency
+			ext := strings.ToLower(f.Extension)
+			base := strings.ToLower(filepath.Base(f.Path))
+			// Count as protected if it's important media/docs
+			if isMediaExt(ext) || isDocExt(base, ext) {
+				report.ProtectedCount++
+				report.ProtectedBytes += f.Size
+				if isMediaExt(ext) && (strings.Contains(ext, "jpg") || strings.Contains(ext, "png") || strings.Contains(ext, "heic") ||
+					strings.Contains(ext, "raw") || strings.Contains(ext, "cr2") || strings.Contains(ext, "nef") ||
+					ext == ".jpeg" || ext == ".gif" || ext == ".bmp" || ext == ".tiff" || ext == ".webp" || ext == ".avif") && !strings.Contains(ext, "mp") {
+					// rough photo detection
+					if ext != ".mp4" && ext != ".mkv" && ext != ".avi" && ext != ".mov" && ext != ".mp3" {
+						report.ProtectedPhotos++
+					}
+				}
+				if strings.Contains(ext, "doc") || strings.Contains(ext, "xls") || strings.Contains(ext, "ppt") ||
+					ext == ".pdf" || ext == ".txt" || ext == ".md" {
+					report.ProtectedDocs++
+				}
+			} else if importantName(base) {
+				report.ProtectedCount++
+				report.ProtectedBytes += f.Size
+			}
 		}
 	}
 	report.Duration = time.Since(start)
@@ -616,15 +676,20 @@ func (a *App) Stats() map[string]interface{} {
 
 func buildReportDTO(r *models.ScanReport) ScanReportDTO {
 	dto := ScanReportDTO{
-		GeneratedAt:  r.GeneratedAt.Format("2006-01-02 15:04:05"),
-		DurationMs:   r.Duration.Seconds() * 1000,
-		Roots:        r.Roots,
-		FilesScanned: r.FilesScanned,
-		DirsScanned:  r.DirsScanned,
-		TotalBytes:   r.TotalBytes,
-		TotalHuman:   models.HumanBytes(r.TotalBytes),
-		Errors:       r.Errors,
-		Candidates:   []CategoryInfo{},
+		GeneratedAt:     r.GeneratedAt.Format("2006-01-02 15:04:05"),
+		DurationMs:      r.Duration.Seconds() * 1000,
+		Roots:           r.Roots,
+		FilesScanned:    r.FilesScanned,
+		DirsScanned:     r.DirsScanned,
+		TotalBytes:      r.TotalBytes,
+		TotalHuman:      models.HumanBytes(r.TotalBytes),
+		Errors:          r.Errors,
+		Candidates:      []CategoryInfo{},
+		ProtectedCount:  r.ProtectedCount,
+		ProtectedBytes:  r.ProtectedBytes,
+		ProtectedHuman:  models.HumanBytes(r.ProtectedBytes),
+		ProtectedPhotos: r.ProtectedPhotos,
+		ProtectedDocs:   r.ProtectedDocs,
 	}
 	for _, cs := range r.ByCategory() {
 		cat := CategoryInfo{

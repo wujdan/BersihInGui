@@ -328,12 +328,14 @@ function renderResults(report) {
     updateSummary();
     updateDonut({});
     document.getElementById('scanLegend').style.display = '';
-    document.getElementById('scanStatusText').textContent = `${report.files_scanned.toLocaleString()} file • ${report.total_human} • 0 kandidat`;
+    const prot = report.protected_count || 0;
+    document.getElementById('scanStatusText').textContent = `${report.files_scanned.toLocaleString()} file • ${report.total_human} • 0 kandidat${prot > 0 ? ` • ${prot.toLocaleString()} file penting dilindungi (${report.protected_human || ''})` : ''}`;
     return;
   }
   empty.classList.add('hidden');
   document.getElementById('scanLegend').style.display = '';
-  document.getElementById('scanStatusText').textContent = `${report.files_scanned.toLocaleString()} file • ${report.total_human} • ${report.candidates.length} Kategori terdeteksi`;
+  const prot2 = report.protected_count || 0;
+  document.getElementById('scanStatusText').textContent = `${report.files_scanned.toLocaleString()} file • ${report.total_human} • ${report.candidates.length} Kategori terdeteksi${prot2 > 0 ? ` • ${prot2.toLocaleString()} file penting dilindungi (${report.protected_human || ''})` : ''}`;
 
   catList.innerHTML = '';
   report.candidates.forEach((cat, i) => {

@@ -13,26 +13,33 @@ import (
 // importantExtensions are files never offered for deletion.
 var importantExtensions = map[string]bool{
 	// source code / projects
-	".go": true, ".rs": true, ".py": true, ".js": true, ".ts": true, ".jsx": true,
-	".tsx": true, ".java": true, ".c": true, ".cpp": true, ".h": true, ".hpp": true,
+	".go": true, ".rs": true, ".py": true, ".js": true, ".jsx": true,
+	".tsx": true, ".ts": true, ".java": true, ".c": true, ".cpp": true, ".h": true, ".hpp": true,
 	".cs": true, ".rb": true, ".php": true, ".sql": true, ".sh": true, ".bat": true,
 	".ps1": true, ".vue": true, ".swift": true, ".kt": true, ".toml": true,
 	".json": true, ".yaml": true, ".yml": true, ".xml": true, ".config": true,
 	// documents
 	".doc": true, ".docx": true, ".xls": true, ".xlsx": true, ".ppt": true, ".pptx": true,
 	".pdf": true, ".txt": true, ".odt": true, ".rtf": true, ".md": true, ".markdown": true,
-	".epub": true, ".mobi": true,
-	// media (personal)
-	".jpg": true, ".jpeg": true, ".png": true, ".gif": true, ".bmp": true, ".tiff": true,
-	".svg": true, ".webp": true, ".raw": true, ".cr2": true, ".nef": true, ".heic": true,
+	".epub": true, ".mobi": true, ".pages": true, ".numbers": true, ".key": true,
+	// media (personal) - fotos & video
+	".jpg": true, ".jpeg": true, ".jpe": true, ".jfif": true, ".png": true, ".gif": true,
+	".bmp": true, ".tiff": true, ".tif": true, ".svg": true, ".webp": true, ".avif": true,
+	".heic": true, ".heif": true, ".raw": true, ".cr2": true, ".cr3": true, ".nef": true,
+	".nrw": true, ".arw": true, ".raf": true, ".orf": true, ".pef": true, ".srw": true,
+	".dng": true, ".rw2": true, ".x3f": true, ".iiq": true,
 	".mp4": true, ".mkv": true, ".avi": true, ".mov": true, ".wmv": true, ".flv": true,
-	".webm": true, ".m4v": true, ".mp3": true, ".wav": true, ".flac": true, ".aac": true,
-	".m4a": true, ".ogg": true, ".opus": true,
+	".webm": true, ".m4v": true, ".3gp": true, ".3g2": true, ".mpg": true, ".mpeg": true,
+	".m2ts": true, ".mts": true, ".vob": true, ".ogv": true, ".divx": true,
+	".xvid": true,
+	// audio (personal)
+	".mp3": true, ".wav": true, ".flac": true, ".aac": true, ".m4a": true, ".ogg": true,
+	".opus": true, ".wma": true, ".aiff": true, ".aif": true, ".alac": true,
 	// personal data
 	".vcf": true, ".ics": true, ".pst": true, ".ost": true, ".eml": true,
 	// databases / project data
 	".db": true, ".sqlite": true, ".sqlite3": true, ".mdb": true, ".accdb": true,
-	".dwg": true, ".dxf": true, ".psd": true, ".ai": true,
+	".dwg": true, ".dxf": true, ".psd": true, ".ai": true, ".cdr": true,
 	// keepsakes: hidden / dotfiles
 	".gitignore": true, ".gitkeep": true, ".env": true,
 }
@@ -80,6 +87,14 @@ func New(cfg *config.Config) *Classifier {
 	return &Classifier{cfg: cfg, orphans: d}
 }
 
+// importantDirs are common media/document directories that should be treated with extra caution.
+var importantDirNames = map[string]bool{
+	"pictures": true, "photos": true, "dcim": true, "camera": true, "cameraroll": true,
+	"documents": true, "document": true, "downloads": true, // downloads can be mixed, but be conservative
+	"desktop": true, "my documents": true, "onedrive": true,
+	"google photos": true, "icloud photos": true,
+}
+
 // Classify evaluates a file and returns a Candidate if it is removable,
 // or nil if the file is considered important/safe to keep.
 func (c *Classifier) Classify(f *models.FileMeta, dupGroup string) *models.Candidate {
@@ -90,10 +105,31 @@ func (c *Classifier) Classify(f *models.FileMeta, dupGroup string) *models.Candi
 
 	ext := strings.ToLower(f.Extension)
 	base := strings.ToLower(filepath.Base(f.Path))
+	dir := strings.ToLower(filepath.Dir(f.Path))
 
 	// 1. Important files are NEVER candidates (document tahap 5).
 	if importantExtensions[ext] || importantExtensions[base] {
 		return nil
+	}
+
+	// 1b. Extra protection for files in common personal media/document directories
+	//     - photos/videos in Pictures/DCIM are almost always important
+	for _, p := range strings.Split(dir, string(filepath.Separator)) {
+		if importantDirNames[p] {
+			// Be extra cautious: if it's media/photo/video or document, never auto-delete
+			if isMediaExtension(ext) || isDocumentExtension(ext) {
+				return nil
+			}
+			// For other files in these dirs, also be more conservative - skip unless it's clearly cache
+		}
+	}
+	// Also check full path patterns
+	if strings.Contains(dir, "\\pictures\\") || strings.Contains(dir, "/pictures/") ||
+		strings.Contains(dir, "\\dcim\\") || strings.Contains(dir, "/dcim/") ||
+		strings.Contains(dir, "\\photos\\") || strings.Contains(dir, "/photos/") {
+		if isMediaExtension(ext) {
+			return nil
+		}
 	}
 
 	// 2. Cache & temp (high confidence). Age is irrelevant here: being in a
@@ -210,6 +246,32 @@ func (c *Classifier) isCacheOrTemp(f *models.FileMeta, ext, base string) bool {
 		return true
 	}
 	return false
+}
+
+func isMediaExtension(ext string) bool {
+	media := map[string]bool{
+		".jpg": true, ".jpeg": true, ".jpe": true, ".jfif": true, ".png": true, ".gif": true,
+		".bmp": true, ".tiff": true, ".tif": true, ".svg": true, ".webp": true, ".avif": true,
+		".heic": true, ".heif": true, ".raw": true, ".cr2": true, ".cr3": true, ".nef": true,
+		".nrw": true, ".arw": true, ".raf": true, ".orf": true, ".pef": true, ".srw": true,
+		".dng": true, ".rw2": true, ".x3f": true, ".iiq": true,
+		".mp4": true, ".mkv": true, ".avi": true, ".mov": true, ".wmv": true, ".flv": true,
+		".webm": true, ".m4v": true, ".3gp": true, ".3g2": true, ".mpg": true, ".mpeg": true,
+		".m2ts": true, ".mts": true, ".ts": true, ".vob": true, ".ogv": true, ".divx": true,
+		".xvid": true,
+		".mp3": true, ".wav": true, ".flac": true, ".aac": true, ".m4a": true, ".ogg": true,
+		".opus": true, ".wma": true, ".aiff": true, ".aif": true, ".alac": true,
+	}
+	return media[ext]
+}
+
+func isDocumentExtension(ext string) bool {
+	docs := map[string]bool{
+		".doc": true, ".docx": true, ".xls": true, ".xlsx": true, ".ppt": true, ".pptx": true,
+		".pdf": true, ".txt": true, ".odt": true, ".rtf": true, ".md": true, ".markdown": true,
+		".epub": true, ".mobi": true, ".pages": true, ".numbers": true, ".key": true,
+	}
+	return docs[ext]
 }
 
 // reasonCache produces a short human readable explanation.
